@@ -145,7 +145,7 @@ class Mailbox {
 		foreach($this->timeouts as $type => $timeout) {
 			$this->imap('timeout', [$type, $timeout], false);
 		}
-		return $this->imap('open', [$this->imapPath, $this->imapLogin, $this->imapPassword, $this->imapOptions, $this->imapRetriesNum, $this->imapParams], false, ConnectionException::class);
+		return $this->imap('open', [$this->imapPath, $this->imapLogin, $this->imapPassword, $this->imapOptions, $this->imapRetriesNum, $this->imapParams], false, ConnectionException::class, false);
 	}
 
 	public function disconnect() {
@@ -216,20 +216,24 @@ class Mailbox {
 		return $this->imap('status', [$this->imapPath, SA_ALL]);
 	}
 
-	/**
-	 * Gets listing the folders
-	 *
-	 * This function returns an object containing listing the folders.
-	 * The object has the following properties: messages, recent, unseen, uidnext, and uidvalidity.
-	 *
-	 * @param string $pattern
-	 * @return array listing the folders
-	 */
-	public function getListingFolders($pattern = '*') {
+    /**
+     * Gets listing the folders
+     *
+     * This function returns an object containing listing the folders.
+     * The object has the following properties: messages, recent, unseen, uidnext, and uidvalidity.
+     *
+     * @param string $pattern
+     * @param bool   $utf7Decode
+     *
+     * @return array listing the folders
+     */
+	public function getListingFolders($pattern = '*', $utf7Decode = true) {
 		$folders = $this->imap('list', [$this->imapPath, $pattern]) ?: [];
-		foreach($folders as &$folder) {
-			$folder = imap_utf7_decode($folder);
-		}
+        if($utf7Decode) {
+            foreach ($folders as &$folder) {
+                $folder = imap_utf7_decode($folder);
+            }
+        }
 		return $folders;
 	}
 
@@ -828,25 +832,29 @@ class Mailbox {
 	public function unsubscribeMailbox($mailbox) {
 		$this->imap('unsubscribe', $this->imapPath . '.' . $mailbox);
 	}
-	/**
-	 * Call IMAP extension function call wrapped with utf7 args conversion & errors handling
-	 *
-	 * @param $methodShortName
-	 * @param array|string $args
-	 * @param bool $prependConnectionAsFirstArg
-	 * @param string|null $throwExceptionClass
-	 * @return mixed
-	 * @throws Exception
-	 */
-	public function imap($methodShortName, $args = [], $prependConnectionAsFirstArg = true, $throwExceptionClass = Exception::class) {
+
+    /**
+     * Call IMAP extension function call wrapped with utf7 args conversion & errors handling
+     *
+     * @param              $methodShortName
+     * @param array|string $args
+     * @param bool         $prependConnectionAsFirstArg
+     * @param string|null  $throwExceptionClass
+     * @param bool         $utf7Encode
+     *
+     * @return mixed
+     */
+	public function imap($methodShortName, $args = [], $prependConnectionAsFirstArg = true, $throwExceptionClass = Exception::class, $utf7Encode = true) {
 		if(!is_array($args)) {
 			$args = [$args];
 		}
-		foreach($args as &$arg) {
-			if(is_string($arg)) {
-				$arg = imap_utf7_encode($arg);
-			}
-		}
+        if($utf7Encode) {
+            foreach ($args as &$arg) {
+                if (is_string($arg)) {
+                    $arg = imap_utf7_encode($arg);
+                }
+            }
+        }
 		if($prependConnectionAsFirstArg) {
 			array_unshift($args, $this->getImapStream());
 		}
